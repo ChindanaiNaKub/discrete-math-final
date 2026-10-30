@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Discrete Math — Final Survival Kit</title>
+<style>
+  :root{
+    --bg:#07080d; --bg2:#0d1018; --ink:#e8eaf2; --dim:#8b93a8; --line:#1e2433;
+    --S:#ffc043; --A:#4fd1ff; --B:#b98cff; --ok:#3ddc97; --bad:#ff5d73;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    overflow:hidden; -webkit-font-smoothing:antialiased;
+  }
+  #app{display:grid;grid-template-columns:1fr 460px;height:100vh;height:100dvh}
+
+  /* ---------- 3D stage ---------- */
+  #stage{position:relative;overflow:hidden;cursor:grab}
+  #stage.dragging{cursor:grabbing}
+  #gl{display:block;width:100%;height:100%}
+  #hud{position:absolute;inset:0;pointer-events:none;padding:22px 26px;display:flex;flex-direction:column}
+  .brand{font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);font-weight:600}
+  .brand b{color:var(--ink);font-weight:700}
+  .sub{font-size:12px;color:var(--dim);margin-top:6px;letter-spacing:.02em}
+  #legend{margin-top:auto;display:flex;gap:16px;flex-wrap:wrap;font-size:11px;letter-spacing:.06em;color:var(--dim);align-items:center}
+  #legend i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:1px}
+  #hint{position:absolute;bottom:22px;right:26px;font-size:11px;color:#4b5468;letter-spacing:.06em;text-align:right;line-height:1.7}
+  #toolbar{position:absolute;top:18px;right:26px;display:flex;gap:8px}
+  .tbtn{
+    pointer-events:auto;background:rgba(20,24,34,.8);border:1px solid var(--line);color:var(--dim);
+    font:600 11px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;padding:9px 13px;border-radius:8px;
+    cursor:pointer;backdrop-filter:blur(8px);transition:.18s;
+  }
+  .tbtn:hover{color:var(--ink);border-color:#33405c}
+  .tbtn.on{color:#080b12;background:var(--ink);border-color:var(--ink)}
+
+  /* ---------- panel ---------- */
+  #panel{
+    background:linear-gradient(180deg,#0b0e15,#080a10);border-left:1px solid var(--line);
+    overflow-y:auto;overflow-x:hidden;position:relative;
+  }
+  #panel::-webkit-scrollbar{width:9px}
+  #panel::-webkit-scrollbar-thumb{background:#1c2333;border-radius:9px}
+  #panel::-webkit-scrollbar-track{background:transparent}
+  .pad{padding:26px 28px 80px}
+
+  /* ladder */
+  .ladder-head{margin-bottom:18px}
+  .ladder-head h1{font-size:21px;letter-spacing:-.02em;line-height:1.25}
+  .ladder-head p{font-size:13px;color:var(--dim);margin-top:8px;line-height:1.65}
+  .tier{margin-top:26px}
+  .tier-h{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+  .tier-badge{
+    font:800 11px/1 var(--mono);padding:5px 9px;border-radius:5px;letter-spacing:.06em;
+  }
+  .tier-h span{font-size:12px;color:var(--dim);letter-spacing:.04em}
+  .card{
+    border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin-bottom:9px;cursor:pointer;
+    background:rgba(17,21,31,.55);transition:.16s;position:relative;overflow:hidden;
+  }
+  .card:hover{border-color:#2c3a55;background:rgba(23,29,42,.85);transform:translateX(2px)}
+  .card-top{display:flex;align-items:baseline;gap:9px}
+  .card-n{font:800 11px/1 var(--mono);color:var(--dim);padding-top:2px;min-width:20px}
+  .card-t{font-size:13.5px;font-weight:650;letter-spacing:-.01em;line-height:1.35;flex:1}
+  .card-p{font:800 11px/1 var(--mono);color:var(--dim)}
+  .card-sub{font-size:11.5px;color:var(--dim);margin-top:6px;line-height:1.5;padding-left:29px}
+  .bar{position:absolute;left:0;top:0;bottom:0;width:3px}
+  .t-S .bar{background:var(--S)} .t-A .bar{background:var(--A)} .t-B .bar{background:var(--B)}
+  .t-S .tier-badge{background:rgba(255,192,67,.14);color:var(--S)}
+  .t-A .tier-badge{background:rgba(79,209,255,.13);color:var(--A)}
+  .t-B .tier-badge{background:rgba(185,140,255,.14);color:var(--B)}
+
+  /* plan */
+  .plan{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:14px}
+  .plan-row{background:#0b0e15;display:grid;grid-template-columns:74px 1fr;gap:12px;padding:11px 13px;font-size:12px}
+  .plan-row b{font:700 11px/1.6 var(--mono);color:var(--S)}
+  .plan-row div{color:#c3c9d8;line-height:1.6}
+
+  /* detail */
+  .back{
+    display:inline-flex;align-items:center;gap:7px;font:700 11px/1 var(--sans);letter-spacing:.1em;
+    text-transform:uppercase;color:var(--dim);cursor:pointer;margin-bottom:20px;background:none;border:none;padding:0;
+  }
+  .back:hover{color:var(--ink)}
+  .d-head{display:flex;align-items:center;gap:8px;margin-bottom:11px;flex-wrap:wrap}
+  .pill{font:800 10px/1 var(--mono);padding:5px 8px;border-radius:5px;letter-spacing:.06em}
+  .pill.pts{background:rgba(255,255,255,.06);color:var(--dim)}
+  .pill.time{background:rgba(255,255,255,.04);color:#6b7christ}
+  .pill.time{background:rgba(255,255,255,.04);color:#6b7386}
+  .d-title{font-size:24px;font-weight:750;letter-spacing:-.025em;line-height:1.2}
+  .d-sub{font-size:13px;color:var(--dim);margin-top:9px;line-height:1.6}
+
+  h4{
+    font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#5c6579;
+    margin:30px 0 12px;font-weight:750;
+  }
+  .principle{
+    border-left:2px solid var(--S);padding:2px 0 2px 15px;font-size:13.5px;line-height:1.7;color:#d3d8e6;
+  }
+  .principle em{color:var(--S);font-style:normal;font-weight:650}
+  ol.steps{list-style:none;counter-reset:s}
+  ol.steps li{
+    counter-increment:s;position:relative;padding-left:30px;font-size:13px;line-height:1.68;
+    color:#c8cede;margin-bottom:11px;
+  }
+  ol.steps li::before{
+    content:counter(s);position:absolute;left:0;top:1px;width:20px;height:20px;border-radius:6px;
+    background:rgba(255,255,255,.055);color:var(--dim);font:800 10px/20px var(--mono);text-align:center;
+  }
+  .ans{
+    background:rgba(61,220,151,.05);border:1px solid rgba(61,220,151,.2);border-radius:10px;padding:16px 17px;
+    font-size:13.5px;line-height:1.85;
+  }
+  .ans .k{color:var(--ok);font-weight:700}
+  .trap{
+    background:rgba(255,93,115,.05);border:1px solid rgba(255,93,115,.18);border-radius:10px;
+    padding:14px 16px;font-size:12.5px;line-height:1.65;color:#e2c3c8;
+  }
+  .trap b{color:var(--bad)}
+  .harder{
+    background:rgba(79,209,255,.05);border:1px solid rgba(79,209,255,.18);border-radius:10px;
+    padding:14px 16px;font-size:12.5px;line-height:1.7;color:#bed6e2;
+  }
+  .harder b{color:var(--A)}
+  code,.m{font-family:var(--mono);font-size:12.5px;background:rgba(255,255,255,.05);padding:2px 6px;border-radius:4px;color:#dfe4f0}
+  .bf{text-decoration:overline}
+
+  /* widgets */
+  .w{border:1px solid var(--line);border-radius:11px;padding:16px;background:rgba(14,18,26,.7);margin-top:8px}
+  .w-bar{display:flex;align-items:center;gap:10px;margin-bottom:13px;flex-wrap:wrap}
+  .w-bar .lbl{font:700 10px/1 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:#5c6579}
+  .btn{
+    background:#1a2130;border:1px solid #2a3345;color:#c8cede;font:650 11.5px/1 var(--sans);
+    padding:8px 13px;border-radius:7px;cursor:pointer;transition:.15s;
+  }
+  .btn:hover{background:#222b3d;color:#fff}
+  .btn:disabled{opacity:.32;cursor:not-allowed}
+  .btn.pri{background:var(--ink);color:#07080d;border-color:var(--ink)}
+  input[type=range]{accent-color:var(--S);width:120px}
+  .num{font-family:var(--mono);font-size:12.5px;color:var(--S);font-weight:700}
+  table.dt{width:100%;border-collapse:collapse;font:12px/1.5 var(--mono)}
+  table.dt th{text-align:left;color:#5c6579;font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase}
+  table.dt td{padding:6px 8px;border-bottom:1px solid rgba(30,36,51,.6);color:#c8cede}
+  table.dt tr.hi td{color:var(--ok);font-weight:700}
+  .canvas-wrap{width:100%;border-radius:8px;overflow:hidden;background:#05070b}
+  .note{font-size:11.5px;color:#6b7386;margin-top:10px;line-height:1.6}
+  .flash{animation:fl .5s ease}
+  @keyframes fl{from{background:rgba(61,220,151,.16)}to{background:transparent}}
+
+  /* cheatsheet */
+  .cs-sec{margin-bottom:22px}
+  .cs-sec h5{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--S);margin-bottom:9px;font-weight:750}
+  .cs-row{display:grid;grid-template-columns:1fr;gap:3px;padding:9px 0;border-bottom:1px solid rgba(30,36,51,.55);font-size:12.5px;line-height:1.6}
+  .cs-row b{color:#dfe4f0;font-weight:650}
+  .cs-row span{color:#8b93a8;font-size:11.5px}
+
+  @media(max-width:1000px){
+    body{overflow:auto}
+    #app{grid-template-columns:1fr;grid-template-rows:46vh auto;height:auto}
+    #panel{border-left:none;border-top:1px solid var(--line);height:auto}
+    body{overflow-y:auto}
+    #app{height:auto}
+    #stage{height:46vh}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="hud">
+      <div>
+        <div class="brand">Discrete Math · <b>Final Survival Kit</b></div>
+        <div class="sub" id="subline">14 problems · 101 points · you have 4 hours</div>
+      </div>
+      <div id="legend">
+        <span><i style="background:var(--S)"></i>S · do these first</span>
+        <span><i style="background:var(--A)"></i>A · points per minute</span>
+        <span><i style="background:var(--B)"></i>B · only if time</span>
+      </div>
+      <div id="toolbar">
+        <button class="tbtn on" id="btnLadder">Ladder</button>
+        <button class="tbtn" id="btnDrill">Drill</button>
+        <button class="tbtn" id="btnCheat">Cheat sheet</button>
+      </div>
+      <div id="hint">drag to orbit · scroll to zoom<br>click a node</div>
+    </div>
+  </div>
+
+  <aside id="panel"><div class="pad" id="panelBody"></div></aside>
+</div>
+
+<script>
+/* ============================================================
+   DATA — every answer below was verified by brute force / code
+   ============================================================ */
+const BAR = s => s.replace(/~(\w)/g, '<span class="bf">$1</span>');
+
+const Q = [
+{
+  n:1, pts:6, tier:'A', min:12,
+  title:'Bagels — stars and bars',
+  sub:'Order does not matter, repeats allowed. One formula, one twist.',
+  principle:'Identical items into labelled boxes is the same as arranging <em>stars</em> and <em>dividers</em> in a line. Choosing a distribution = choosing where the dividers sit.',
+  steps:[
+    'Name the boxes. Four kinds → four variables x₁,x₂,x₃,x₄ (counts).',
+    'Write the constraint: x₁+x₂+x₃+x₄ = 12, each xᵢ ≥ 0.',
+    'Reframe as a picture: 12 stars in a row, 3 dividers separating the 4 boxes. Every arrangement of that 15-symbol line is one order. So the count is C(15,3) = 455.',
+    'Now the twist: "of 3 kinds" means exactly three of the four kinds appear, so exactly one xᵢ = 0.',
+    'Pick which kind is missing: C(4,3) = 4 ways. Then the other three must each get ≥ 1: substitute yᵢ = xᵢ−1, giving y₁+y₂+y₃ = 9 → C(11,2) = 55.',
+    'Multiply: 4 × 55 = 220.'
+  ],
+  answer:`<span class="k">220</span> ways (exactly 3 of the 4 kinds).<br><br>
+    If the question instead allowed all 4 kinds the answer would be C(15,3) = 455.`,
+  trap:'Do not use C(12+4−1, 3) = 455 blindly. The phrase "of 3 kinds" is the whole question. Also, "at least one of each of the other three" is what forces the substitution step, not stars and bars directly.',
+  verify:'455 = 4 (one kind) + 66 (two kinds) + 220 (three kinds) + 165 (four kinds). The pieces add up, so 220 is consistent.'
+},
+
+{
+  n:2, pts:10, tier:'A', min:30,
+  title:'7-letter strings over a…k',
+  sub:'Five sub-parts. Each one is a different counting tool.',
+  principle:'Ask two questions before counting anything: <em>does order matter</em>, and <em>are repeats allowed</em>? Those two answers pick your formula every time.',
+  steps:[
+    '(a) 7 positions, 11 choices each, repeats fine → 11⁷ = <b>19,487,171</b>.',
+    '(b) No repeats → order matters, no repeats → permutations: P(11,7) = 11·10·9·8·7·6·5 = <b>1,663,200</b>.',
+    '(c) Starts with "ijk" → those 3 letters are fixed, 4 positions stay free → 11⁴ = <b>14,641</b>. Repeats are still allowed here, so 11 per slot.',
+    '(d) Inclusion–exclusion. |starts ab| = 11⁵, |ends jk| = 11⁵, |both| = the overlap is positions 3,4,5 free = 11³.',
+    'So 11⁵ + 11⁵ − 11³ = 161,051 + 161,051 − 1,331 = <b>320,771</b>.',
+    '(e) No repeats <i>and</i> avoids "bed". Count the bad ones instead. Place "bed" starting at position 1,2,3,4 or 5 (5 placements). Each leaves 4 slots to fill from the 8 unused letters, no repeats → P(8,4) = 1,680.',
+    'Bad = 5 × 1,680 = 8,400. Answer = 1,663,200 − 8,400 = <b>1,654,800</b>.'
+  ],
+  answer:`(a) 19,487,171 &nbsp; (b) 1,663,200 &nbsp; (c) 14,641<br>
+    (d) 320,771 &nbsp; (e) 1,654,800`,
+  trap:'In (e) do not multiply P(8,4) by 7. "bed" needs 3 consecutive positions inside a 7-slot word, so only 5 starting slots exist. Count placements, not letters.',
+  verify:'11⁵ = 161,051 and 11³ = 1,331. 322,102 − 1,331 = 320,771 ✓. And 5·P(8,4) = 5·1680 = 8,400 ✓.'
+},
+
+{
+  n:3, pts:6, tier:'A', min:15,
+  title:'4-digit numbers with odd digit sum',
+  sub:'Parity only. The actual digits never matter.',
+  principle:'Only the <em>parity</em> of each digit matters. Count digit choices by parity, then ask how many odd digits you need — an odd number of them.',
+  steps:[
+    'Leading digit 1–9: 5 odd (1,3,5,7,9), 4 even (2,4,6,8).',
+    'The other three digits 0–9: 5 odd, 5 even each.',
+    'Sum odd ⇔ you used an odd count of odd digits → either exactly 1 odd digit, or exactly 3.',
+    'Exactly 1 odd — the odd digit is in the lead: 5 × 5³ = 625.',
+    'Exactly 1 odd — the odd digit is one of slots 2,3,4: 3 × 4 × 5 × 5² = 1,500. Subtotal 2,125.',
+    'Exactly 3 odd — lead is odd, then two odd and one even among slots 2–4: 5 × 3 × 5² × 5 = 1,875.',
+    'Exactly 3 odd — lead is even, all three later digits odd: 4 × 5³ = 500. Subtotal 2,375.',
+    'Total 2,125 + 2,375 = 4,500.'
+  ],
+  answer:`<span class="k">4,500</span> numbers.<br><br>
+    Fast check with a parity generating function: (5o+4e)(5o+5e)³. Evaluate at the "odd-count" sign x = −1: (−5+4)(−5+5)³ = 0, and total = 9,000. Odd = (9,000 − 0)/2 = 4,500.`,
+  trap:'The trap is the leading digit. If you treat all four slots as 5/5 you get 9,000/2 = 4,500 by luck — but write the reasoning, because the marker wants the split. Do not forget 0 is even and cannot lead.',
+  verify:'Direct computer count over 1000..9999 gives exactly 4,500.'
+},
+
+{
+  n:4, pts:4, tier:'B', min:6,
+  title:'Bipartite or not',
+  sub:'Two colors means no odd cycle. Find one, or fail to 2-color.',
+  principle:'A graph is bipartite exactly when it has <em>no odd cycle</em>. Practically: try to 2-color greedily. The moment two same-colored vertices are adjacent, that conflict <i>is</i> your odd cycle and you need a third color.',
+  widget:'color',
+  steps:[
+    'Color one vertex 1, then push the coloring outward along edges (every neighbor of a 1 becomes 2).',
+    'Follow this 5-cycle in the figure: centre-left vertex → centre vertex → top-right vertex → bottom-left vertex → bottom-centre vertex → back to centre-left.',
+    'Assume 2 colors. Going around a 5-cycle forces color 1 at both ends of that cycle, but the last edge joins two 1s. Contradiction.',
+    'So it is NOT bipartite, and at least 3 colors are needed.',
+    'Commit the 3-coloring on the widget to confirm 3 works.'
+  ],
+  answer:`Not bipartite. Chromatic number <span class="k">χ = 3</span>.`,
+  trap:'"Not bipartite" alone is half the answer. The question also asks how many colors you need, so you must produce a valid coloring, not just a rejection.',
+  verify:'Contains a 5-cycle → χ ≥ 3. A 3-coloring exists → χ ≤ 3. So χ = 3.'
+},
+
+{
+  n:5, pts:4, tier:'S', min:4,
+  title:'Handshake lemma',
+  sub:'The cheapest 4 points on the paper.',
+  principle:'Every edge has two endpoints, so it contributes exactly 2 to the total of all degrees. <em>Sum of degrees = 2 × number of edges.</em>',
+  steps:[
+    'Edges = 35, so total degree = 70.',
+    'Known degrees: 4 vertices of degree 5 → 20; 5 of degree 4 → 20; 4 of degree 3 → 12. Known sum = 52.',
+    'Remaining degree = 70 − 52 = 18.',
+    'Those belong to degree-2 vertices, so 18 ÷ 2 = 9 vertices.'
+  ],
+  answer:`<span class="k">9</span> vertices of degree 2.`,
+  trap:'Using 35 as the degree sum. Always double it. Also watch for "simple graph" — if the leftover came out odd you would know the data was impossible.',
+  verify:'Degree sum check: 20+20+12+18 = 70 = 2·35 ✓'
+},
+
+{
+  n:6, pts:8, tier:'B', min:22,
+  title:'t × t knight graph',
+  sub:'Matrices, a drawing, and one clean closed form.',
+  principle:'A knight move is a 2×3 rectangle traversal. Count <em>shapes of moves</em>, not squares — every 2×3 block on the board contributes exactly 2 edges.',
+  widget:'knight',
+  steps:[
+    'Label the 3×3 squares 1..9 row by row. Only 8 moves exist; the centre (5) has none.',
+    'Edges: 1–6, 1–8, 2–9, 2–7, 3–4, 3–8, 4–9, 6–7. That is 8 edges, every vertex degree 2 except 5.',
+    '(a) Adjacency matrix: 0/1 symmetric 9×9 with exactly those 16 ones. Incidence matrix is 9×8: one +1 per row for each incident edge, 0 elsewhere, and vertex 5 is an all-zero row.',
+    '(b) The drawing: the 8 non-centre squares form a single 8-cycle 1–6–7–2–9–4–3–8–1, plus vertex 5 standing alone.',
+    '(c) 8×8: a 2×3 block fits in 7×6 positions and contributes 2 moves; a 3×2 block fits in 6×7. Total 2·42 + 2·42 = 168.',
+    '(d) General t: 2(t−1)(t−2) + 2(t−1)(t−2) = 4(t−1)(t−2), valid for t ≥ 3.',
+    'Check the formula against part (c): 4·7·6 = 168 ✓'
+  ],
+  answer:`(a) 9×9 adjacency matrix with ones only at 1–6, 1–8, 2–7, 2–9, 3–4, 3–8, 4–9, 6–7. Incidence matrix 9×8.<br>
+    (b) An 8-cycle plus an isolated centre vertex.<br>
+    (c) <span class="k">168</span> edges.<br>
+    (d) <span class="k">4(t−1)(t−2)</span> edges for t ≥ 3.`,
+  trap:'Do not say the 3×3 knight graph is empty. Corners still reach the squares two-over-one-down. Also do not forget the isolated vertex 5 in both matrices and the drawing.',
+  verify:'Brute-force enumeration on t = 3 and t = 8 matches 4(t−1)(t−2) = 8 and 168.'
+},
+
+{
+  n:7, pts:8, tier:'B', min:22,
+  title:'Shortest path X → Y',
+  sub:'Dijkstra with a table. Show the table and you get the marks.',
+  principle:'Grow a set of <em>finalized</em> vertices out from X, always taking the closest unsettled vertex. One pass over the table beats staring at the picture.',
+  widget:'dijkstra',
+  steps:[
+    'Set d(X) = 0, every other d = ∞.',
+    'Repeat: pick the unsettled vertex with smallest d, settle it, then relax its outgoing edges (d(v) = min(d(v), d(u)+w(u,v))).',
+    'X settles at 0. It relaxes A→7, B→2, C→3.',
+    'B settles at 2 (relaxes A to 5). C settles at 3 (relaxes H→6, L→5). A settles at 5 (relaxes D→9).',
+    'L settles at 5, J settles at 6, H settles at 6 and relaxes G→8.',
+    'G settles at 8 and relaxes Y→10. F settles at 10.',
+    'Y settles at 10. Stop — Y is final.'
+  ],
+  answer:`Shortest distance = <span class="k">10</span><br>
+    Path: <span class="k">X → C → H → G → Y</span> &nbsp; (3 + 3 + 2 + 2 = 10)`,
+  trap:'Several arrows point <i>into</i> X (A→X, E→X). Do not walk backwards along them — a directed edge only counts forwards. The competing route X→B→A→D→F→Y costs 11, so 10 wins.',
+  verify:'Dijkstra run over the transcribed adjacency list returns 10 with path X,C,H,G,Y. Undirected reading of the same edges gives the same 10.'
+},
+
+{
+  n:8, pts:8, tier:'S', min:14,
+  title:'Rooted tree vocabulary',
+  sub:'Eight free marks. Pure definitions.',
+  principle:'Everything is measured <em>from the root</em>. Parent/child = one edge away. Ancestors = the path up to the root. Descendants = everything below.',
+  widget:'tree',
+  steps:[
+    'Root a has children b, f, g.',
+    'b has child c. c has children d, e. f is a leaf.',
+    'g has children h, i, j. h has child k. j has children l, m.',
+    'Apply the definitions from the root outward. Ancestors of v = every vertex on the unique path from v up to and including the root. Descendants of v = everything reachable going downward from v; v itself is not listed.',
+    'Internal = has at least one child. Leaf = no children.',
+    'm-ary: m is the largest number of children any vertex has. Here a and g both have 3.'
+  ],
+  answer:`(a) b &nbsp; (b) h, i, j &nbsp; (c) i, j &nbsp; (d) c, b, a<br>
+    (e) c, d, e &nbsp; (f) a, b, c, g, h, j &nbsp; (g) d, e, f, i, k, l, m<br>
+    (h) g with children h, i, j; h's child k; j's children l and m<br>
+    (i) m = <span class="k">3</span>`,
+  trap:'(c) siblings of h — h is a child of g, so siblings are the other children of g, namely i and j. Not b and c. (f) f is a leaf even though it sits high up the tree.',
+  verify:'Leaves + internal = 7 + 6 = 13 = total vertices (a..m) ✓'
+},
+
+{
+  n:9, pts:8, tier:'A', min:20,
+  title:'Minimum spanning tree',
+  sub:'Kruskal: sort, take, reject cycles. 11 edges, 11 steps.',
+  principle:'Sort all edges by weight. Take the cheapest edge that does <em>not</em> create a cycle, until you have n−1 edges. Greedy is optimal here, and the steps are the proof.',
+  widget:'kruskal',
+  steps:[
+    'Sort ascending: 1,1,2,2,2,3,3,4,6,6,6,7,8,10,10,11,12,13,13,16,18,22,25.',
+    'Walk the sorted list. Accept an edge if its ends are in different components (union-find). Reject if same component.',
+    'Accept B–C (1), I–J (1), B–E (2), C–D (2), G–I (2).',
+    'G–J (3): G, I, J already joined → REJECT. Accept K–L (3).',
+    'Accept E–F (4), A–B (6). Reject A–C (6) and A–D (6) — already connected.',
+    'Accept J–L (8). Reject C–E (7).',
+    'Accept C–J (10) — this joins the left block to the right block. Accept F–H (10).',
+    'Stop: 11 edges for 12 vertices.'
+  ],
+  answer:`Total weight <span class="k">49</span>. Edges:<br>
+    B–C, I–J, B–E, C–D, G–I, K–L, E–F, A–B, J–L, C–J, F–H`,
+  trap:'G–J (weight 3) is the classic trap: it closes the triangle G–I–J–G, so Kruskal rejects it even though it is cheap. You must <i>state</i> the rejection — the marking scheme wants the decision, not just the final tree.',
+  verify:'Independent Kruskal run with union-find gives 11 edges, weight 49, all 12 vertices connected.'
+},
+
+{
+  n:10, pts:8, tier:'B', min:18,
+  title:'DFS spanning tree',
+  sub:'A procedure question. The order you write decides your marks.',
+  principle:'DFS goes as <em>deep as possible</em> before backing up. The spanning tree is exactly the set of edges used to first reach each new vertex.',
+  widget:'dfs',
+  steps:[
+    'Fix a rule and write it down: "always take the smallest-numbered unvisited neighbor; if none, backtrack."',
+    'Start at 1. Mark visited. Write Step 1 = visit 1.',
+    'From the current vertex, take the smallest unvisited neighbor and draw that edge. That edge joins the spanning tree. Step 2, Step 3, …',
+    'When the current vertex has no unvisited neighbors, backtrack along the stack until you find one that does. Backtracking edges are NOT added to the tree.',
+    'A spanning tree on 16 vertices has exactly 15 edges, so you fill exactly 15 steps. If you run out of vertices before Step 15, the graph was disconnected.',
+    'Write each step as an edge, e.g. "Step 4: 8 → 9".'
+  ],
+  answer:`15 tree edges (one per step), starting at vertex 1. Every step is an edge you traversed to reach a vertex for the first time.<br><br>
+    The exact tree depends on the tie-breaking rule, so state your rule first. That is what the marker grades.`,
+  trap:'Do not include backtracking edges in the tree. Do not skip a vertex. And do not restart from a new unvisited vertex unless the graph is disconnected — if you had to, you would have a spanning forest, not a tree.',
+  verify:'n = 16 vertices → n−1 = 15 edges → 15 steps, which matches the 15 answer boxes on the paper.'
+},
+
+{
+  n:11, pts:6, tier:'S', min:18,
+  title:'Huffman coding',
+  sub:'Count, merge smallest twice, read codes off the tree.',
+  principle:'Merge the two <em>least frequent</em> symbols repeatedly. Rare symbols end up deep, common ones shallow, which minimises total bits. Total bits = weighted external path length.',
+  widget:'huffman',
+  steps:[
+    'Write the string with spaces visible: n o _ p a i n _ n o _ g a i n. That is 15 characters.',
+    'Count: n = 4, space = 3, o = 2, a = 2, i = 2, p = 1, g = 1.',
+    'Merge the two smallest: p(1) + g(1) = 2. Now the pool is n4, _3, o2, a2, i2, pg2.',
+    'Merge o(2) + a(2) = 4. Then i(2) + pg(2) = 4. Pool: n4, _3, oa4, ipg4.',
+    'Merge _(3) + n(4) = 7. Pool: oa4, ipg4, _n7.',
+    'Merge oa(4) + ipg(4) = 8. Merge 7 + 8 = 15. Root reached.',
+    'Label each left branch 0 and right branch 1 and read down to each symbol.',
+    'Cost check: 4·2 + 3·2 + 2·3 + 2·3 + 2·3 + 1·4 + 1·4 = 40 bits.'
+  ],
+  answer:`Codes: n = 01, space = 00, o = 101, a = 010, i = 100, p = 0111, g = 0110<br>
+    (any tree built by the merge rules is valid; yours may swap 0/1 and differ)<br><br>
+    Total encoded length = <span class="k">40 bits</span>.`,
+  tip:'Ties can be broken freely. Two different trees can both be optimal — as long as the merge order always took two smallest, you are correct.',
+  trap:'Forgetting the space. The hint on the paper says it explicitly, and dropping it changes every frequency. Also do not merge by alphabet.',
+  verify:'Weighted path length computes to 40 and matches the length of the concatenated codeword string.'
+},
+
+{
+  n:12, pts:10, tier:'S', min:20,
+  title:'Boolean function → SOP → gates',
+  sub:'Read rows, write products, simplify, draw.',
+  principle:'For each row where F = 1, write a product term: variable as-is if the input is 1, complemented if 0. OR the terms. That is the sum of products, and it is mechanical.',
+  widget:'sop',
+  steps:[
+    'Scan for F = 1. Only three rows: 111, 101, 011.',
+    '111 → ABC. &nbsp; 101 → A<span class="bf">B</span>C. &nbsp; 011 → <span class="bf">A</span>BC.',
+    '(a) Raw SOP: F = <span class="bf">A</span>BC + A<span class="bf">B</span>C + ABC.',
+    'Note both 111 and 101 are 1 while B flips, so B is irrelevant when A = C = 1 → those two rows collapse to AC.',
+    'Note 001 is 0 while 011 is 1, so B is doing real work in the second group → keep <span class="bf">A</span>BC.',
+    'F = AC + <span class="bf">A</span>BC. Factor: C(A + <span class="bf">A</span>B) = C(A + B) by the absorption law A + <span class="bf">A</span>B = A + B.',
+    '(b) Gates for the SOP: three 3-input AND gates feeding one 3-input OR. Cheaper version: two 2-input AND gates (A·C and B·C) feeding one 2-input OR.'
+  ],
+  answer:`(a) SOP = <span class="k">A<span class="bf">B</span>C + <span class="bf">A</span>BC + ABC</span><br>
+    simplified = AC + BC = <span class="k">C(A + B)</span><br><br>
+    (b) Two AND gates (A·C, B·C) → one OR gate.`,
+  trap:'Complementing the wrong way round. Rule: input 1 → bare letter, input 0 → barred letter. Re-check one row with the simplifying laws when you finish.',
+  verify:'C(A+B) reproduces the table on all 8 rows: 1 1 1 → 1, 1 1 0 → 0, 1 0 1 → 1, 1 0 0 → 0, 0 1 1 → 1, 0 1 0 → 0, 0 0 1 → 0, 0 0 0 → 0 ✓'
+},
+
+{
+  n:13, pts:7, tier:'S', min:18,
+  title:'Karnaugh map simplification',
+  sub:'Turn 5 terms into 3. Groups of 2ⁿ, wrap around the edges.',
+  principle:'Adjacent cells in a K-map differ in exactly one variable, so a group of 2<sup>k</sup> cells kills k variables. Bigger group = shorter term. That is the entire technique.',
+  widget:'kmap',
+  steps:[
+    'Expand each term to its minterms. <span class="bf">A</span><span class="bf">B</span><span class="bf">C</span><span class="bf">D</span> → 0000 = 0. A<span class="bf">B</span>CD → 1010 = 10. A<span class="bf">B</span><span class="bf">C</span><span class="bf">D</span> → 1000 = 8.',
+    '<span class="bf">A</span>CD has B free → 0011 = 3 and 0111 = 7. A<span class="bf">B</span>C has D free → 1010 = 10 and 1011 = 11.',
+    'So F = Σm(0, 3, 7, 8, 10, 11).',
+    'Mark those six cells on the 4×4 map (rows AB in Gray order 00,01,11,10; columns CD in 00,01,11,10).',
+    'Group 0 with 8 — same column CD = 00, A flips → gives <span class="bf">B</span><span class="bf">C</span><span class="bf">D</span>.',
+    'Group 3 with 7 — column 11, A flips, B is fixed 1 → gives <span class="bf">A</span>CD. (Pairing 7 with 5 or 6 is not allowed, those cells are 0.)',
+    'Group 10 with 11 — row 10, D flips → gives A<span class="bf">B</span>C.',
+    'Every 1 is covered and each group is as large as the zeros around it allow.'
+  ],
+  answer:`F = <span class="k"><span class="bf">B</span><span class="bf">C</span><span class="bf">D</span> + <span class="bf">A</span>CD + A<span class="bf">B</span>C</span><br><br>
+    Down from 5 terms to 3.`,
+  trap:'Grouping cells that are 0, or using a non-power-of-two group. Also check the wraparound: the left and right columns of the map are adjacent, and so are the top and bottom rows.',
+  verify:'The three terms cover exactly {0, 8, 3, 7, 10, 11} and nothing else — verified by exhaustive check over all 16 inputs.'
+},
+
+{
+  n:14, pts:8, tier:'A', min:28,
+  title:'Quine–McCluskey',
+  sub:'The long grind. Same idea as a K-map, just written out.',
+  principle:'Two product terms differing in exactly one bit combine into one with that bit removed. Repeat until nothing combines. Combine = the one variable that changed is the one you delete.',
+  widget:'qm',
+  steps:[
+    'Write the minterms in binary and group them by number of 1s: 0 ones: 0000. 1 one: 0010, 1000. 2 ones: 0101, 0110, 1010, 1100. 3 ones: 0111, 1101, 1110. 4 ones: 1111.',
+    'Pass 1: combine any pair in adjacent groups differing in one bit, dash out that bit.',
+    '0000+0010 → 00−0, 0000+1000 → −000, 0010+0110 → 0−10, 0010+1010 → −010, 1000+1010 → 1−00, 1000+1100 → 1−00 …',
+    'Keep passing until no new combination appears. Terms that never combine are prime implicants.',
+    'Prime implicants that survive: <span class="bf">B</span><span class="bf">D</span>, BD, C<span class="bf">D</span>, BC, A<span class="bf">D</span>, AB.',
+    'Build the cover table: 0 and 2 are covered only by <span class="bf">B</span><span class="bf">D</span>; 5 only by BD. Both are essential, so take them.',
+    'After <span class="bf">B</span><span class="bf">D</span> + BD, the uncovered minterms are 6, 12, 14. All three sit inside C<span class="bf">D</span>. Take it.',
+    'Done: three terms cover all eleven minterms.'
+  ],
+  answer:`F = <span class="k"><span class="bf">B</span><span class="bf">D</span> + BD + C<span class="bf">D</span></span><br><br>
+    11 minterms → 3 terms.`,
+  trap:'Stopping at the first pass. A term that combines once is not automatically a prime implicant. And do not forget essential prime implicants are compulsory — a minterm covered by only one prime forces it in.',
+  verify:'<span class="bf">B</span><span class="bf">D</span> = {0,2,8,10}, BD = {5,7,13,15}, C<span class="bf">D</span> = {6,12,14}. Union = exactly the 11 given minterms. A 2-term cover is impossible because 0, 2 and 5 each have a unique prime implicant.'
+}
+];
+
+/* ============================================================
+   "IF THE REAL EXAM IS HARDER" — the generalisation of each trick
+   ============================================================ */
+const HARDER = {
+1:`Unrestricted count is C(15,3) = 455. If they add a <b>cap</b> ("at most 5 of any kind"), do unrestricted minus the cases where one kind exceeds 5. If they say <b>"every kind appears"</b>, substitute yᵢ = xᵢ − 1 first, then stars and bars on the remainder. If the items became <b>distinguishable</b>, it stops being stars and bars and becomes an inclusion–exclusion problem.`,
+2:`Longer strings: replace 11⁷ with 11ⁿ everywhere and P(11,7) with P(11,n). If the restriction becomes <b>"no two vowels adjacent"</b>, place the consonants first then choose gaps. For (e)-style questions, the count is always (number of placements) × (fillings of what is left), never (letters) × (fillings).`,
+3:`If they change "odd" to <b>"divisible by 3"</b>, parity tricks die. Use a generating function over residues mod 3, or count digit triples by residue. For "even sum", it is total minus the odd count. The leading-digit asymmetry (1–9 vs 0–9) is the recurring trap in every version of this.`,
+4:`They may ask for the <b>chromatic number</b> of a much larger graph, or a <b>chromatic polynomial</b>. Same core test: try 2 colours greedily; if it fails you have an odd cycle. For χ = 4 you need a K₄ or an odd wheel — a failed 2-colouring only proves χ ≥ 3.`,
+5:`If they give you the number of degree-2 vertices instead and ask for the edges, solve 2|E| = Σdeg. If the leftover degree sum came out <b>odd</b>, the data describes no simple graph — say so, that is the intended answer. Bipartite graphs additionally have Σdeg ≤ 2·(n/2)² which bounds edges.`,
+6:`For a rectangular <b>m×n</b> board the count is 2(m−1)(n−2) + 2(m−2)(n−1), or 4mn − 6m − 6n + 8. If they ask for the adjacency matrix of the 4×4, generate it by the move list instead of memorising. If they ask whether the knight graph is bipartite, note a knight always changes colour, so it <i>is</i> bipartite — that is a likely follow-up.`,
+7:`<b>Negative weights</b> break Dijkstra — switch to Bellman–Ford and say why. If they ask for the longest path, note it is NP-hard in general but easy on a DAG. If they ask for "all shortest paths", the table still works; you just stop when Y settles instead of at the end.`,
+8:`If they give an <b>edge list</b> instead of a picture, root the tree by BFS from a first and rebuild the parent pointers yourself. A likely follow-up is preorder / postorder / inorder traversal, or "how many leaves does an m-ary tree of height h have at most" = mʰ.`,
+9:`A <b>maximum</b> spanning tree is the same algorithm with the sort reversed. For a <b>directed</b> graph, "spanning tree" becomes an arborescence and Kruskal no longer applies directly. If they ask whether the MST is unique, answer: it is unique when all edge weights are distinct.`,
+10:`If they ask for <b>BFS</b> instead, use a queue and the tree becomes the shortest-path tree by edge count. If they ask for preorder numbering, that is just the order you first visit each vertex — number them as you go and the DFS tree falls out afterwards.`,
+11:`If they give you a <b>bit string to decode</b>, walk the tree from the root bit by bit and emit a symbol whenever you hit a leaf. If a coded message is given, total bits = Σ freq × length works in both directions. Note Huffman is optimal for a fixed symbol alphabet but not for blocks of symbols.`,
+12:`Four variables: same procedure, 16 rows. If <b>don't-care</b> rows appear (marked X), treat them as 1 when it makes a group bigger and 0 otherwise. If they ask for <b>product of sums</b>, group the zeros instead and flip the polarity of each literal.`,
+13:`A 5-variable map is two 4×4 maps side by side, and the cells overlapping in the mirror position are adjacent. If they ask for <b>POS</b>, group the 0 cells and read each group as a sum. Always check that every 1 is covered — an uncovered cell is the most common lost mark.`,
+14:`With <b>don't-cares</b>, include them in the minterm list but only to grow groups, never as a requirement. If two prime implicants cover exactly the same minterms, either one is accepted. For 5+ variables the tables get long — the K-map check at the end is your safety net.`
+};
+Q.forEach(q => q.harder = HARDER[q.n]);
+
+/* ============================================================
+   CHEAT SHEET
+   ============================================================ */
+const CHEAT = [
+ ['Counting', [
+   ['Permutations (order matters, no repeats)', 'P(n,r) = n!/(n−r)!'],
+   ['Combinations (order irrelevant)', 'C(n,r) = n!/(r!(n−r)!)'],
+   ['Arrangements of a multiset', 'n! / (n₁! n₂! …)'],
+   ['Stars and bars, repeats allowed', 'C(n+k−1, k−1)'],
+   ['Stars and bars, each ≥ 1', 'C(n−1, k−1)'],
+   ['|A ∪ B|', '|A| + |B| − |A ∩ B|'],
+ ]],
+ ['Graphs', [
+   ['Handshake lemma', 'Σdeg = 2|E|'],
+   ['Bipartite ⇔', 'no odd cycle'],
+   ['Tree on n vertices', 'n−1 edges, connected, acyclic'],
+   ['MST edges needed', 'n − 1'],
+   ['DFS/BFS spanning tree edges', 'n − 1 per component'],
+   ['Knight graph edges on t×t', '4(t−1)(t−2), t ≥ 3'],
+ ]],
+ ['Trees', [
+   ['m-ary', 'm = max children of any vertex'],
+   ['Internal vertex', 'has ≥ 1 child'],
+   ['Leaf', 'has no children'],
+   ['Ancestors of v', 'every vertex on the path from v up to the root (root included)'],
+   ['Descendants of v', 'everything reachable downward from v'],
+ ]],
+ ['Compression', [
+   ['Huffman', 'merge two smallest weights, repeat'],
+   ['Total bits', 'Σ freq × code length'],
+ ]],
+ ['Boolean', [
+   ['SOP from truth table', 'for each F=1 row: input 1 → bare letter, input 0 → barred'],
+   ['Absorption', 'X + X̄Y = X + Y'],
+   ['K-map group of 2ᵏ', 'kills k variables'],
+   ['K-map adjacency', 'Gray code order; edges wrap around'],
+   ['Quine–McCluskey combine', 'differ in 1 bit → delete that bit'],
+   ['Essential prime implicant', 'the only one covering some minterm — compulsory'],
+ ]]
+];
+
+/* ============================================================
+   3D ENGINE (hand-rolled, no dependencies)
+   ============================================================ */
+const cv = document.getElementById('gl');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+const links = [[0,1],[1,2],[3,4],[3,5],[5,6],[6,8],[7,8],[8,9],[11,12],[12,13],[10,7]];
+
+// Fibonacci sphere: even spread, no clustering, reads well while rotating
+const R3 = 340, GA = Math.PI * (3 - Math.sqrt(5));
+const nodes = Q.map((q, i) => {
+  const y = 1 - (i / (Q.length - 1)) * 2;
+  const rad = Math.sqrt(Math.max(0, 1 - y * y));
+  const th = GA * i;
+  return {
+    i, q,
+    x: Math.cos(th) * rad * R3,
+    y: y * R3 * 0.78,
+    z: Math.sin(th) * rad * R3,
+    ph: Math.random() * Math.PI * 2,
+    hot: 0
+  };
+});
+
+let yaw = 0.55, pitch = -0.18, zoom = 1, targetZoom = 1;
+let dragging = false, lastX = 0, lastY = 0, moved = 0, vYaw = 0.0016;
+let selected = -1;
+
+function resize() {
+  const r = cv.getBoundingClientRect();
+  W = r.width; H = r.height;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resize);
+
+function rot(p) {
+  const cy = Math.cos(yaw), sy = Math.sin(yaw);
+  let x = p.x * cy - p.z * sy;
+  let z = p.x * sy + p.z * cy;
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  let y = p.y * cp - z * sp;
+  z = p.y * sp + z * cp;
+  return { x, y, z };
+}
+function proj(r) {
+  const d = 1000, f = 780 * zoom;
+  const zz = Math.max(r.z + d, 60);
+  const s = f / zz;
+  return { x: W / 2 + r.x * s, y: H / 2 + r.y * s, s, z: r.z };
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // vignette + stars
+  const g = ctx.createRadialGradient(W * .5, H * .45, 0, W * .5, H * .45, Math.max(W, H) * .75);
+  g.addColorStop(0, '#0d1220'); g.addColorStop(1, '#05060a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  const P = nodes.map(n => ({ ...n, p: proj(rot(n)) }));
+  P.sort((a, b) => a.p.z - b.p.z);
+
+  // links
+  for (const [a, b] of links) {
+    const A = P.find(p => p.i === a), B = P.find(p => p.i === b);
+    if (!A || !B) continue;
+    const depth = (A.p.z + B.p.z) / 2;
+    const al = Math.max(0.03, 0.2 - depth / 3200);
+    ctx.beginPath();
+    ctx.moveTo(A.p.x, A.p.y);
+    ctx.lineTo(B.p.x, B.p.y);
+    ctx.strokeStyle = `rgba(120,150,210,${al})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // nodes
+  for (const n of P) {
+    const { x, y, s, z } = n.p;
+    const r = Math.max(4, 21 * s);
+    const col = n.q.tier === 'S' ? '255,192,67' : n.q.tier === 'A' ? '79,209,255' : '185,140,255';
+    const fade = Math.max(0.22, Math.min(1, 1 - z / 1100 + 0.35));
+    const isSel = n.i === selected;
+
+    // glow
+    const gg = ctx.createRadialGradient(x, y, 0, x, y, r * (isSel ? 4.2 : 2.8));
+    gg.addColorStop(0, `rgba(${col},${0.42 * fade})`);
+    gg.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = gg;
+    ctx.beginPath(); ctx.arc(x, y, r * (isSel ? 4.2 : 2.8), 0, 7); ctx.fill();
+
+    // core
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7);
+    ctx.fillStyle = `rgba(${col},${0.94 * fade})`;
+    ctx.fill();
+    if (isSel) {
+      ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+    }
+
+    // label
+    const fs = Math.max(8, 14 * s) * (isSel ? 1.15 : 1);
+    ctx.font = `800 ${fs}px ui-monospace,monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = `rgba(8,10,16,${fade})`;
+    ctx.fillText(n.q.n, x, y + 0.5);
+    n._p = n.p; n._fade = fade; n._r = r;
+  }
+
+  // label pass, nearest first so close nodes win the space
+  const placed = [];
+  for (const n of [...P].sort((a, b) => b.p.z - a.p.z)) {
+    const { x, y, s } = n.p;
+    const r = n._r, fade = n._fade;
+    if (s < 0.66) continue;
+    const fs = Math.max(9, 11 * s);
+    ctx.font = `600 ${fs}px Inter,system-ui,sans-serif`;
+    const words = n.q.title.split(' ');
+    let line = '', lines = [];
+    for (const w of words) {
+      if ((line + w).length > 16) { lines.push(line); line = w + ' '; }
+      else line += w + ' ';
+    }
+    lines.push(line);
+    lines = lines.slice(0, 2).map(l => l.trim());
+    const wMax = Math.max(...lines.map(l => ctx.measureText(l).width));
+    const box = { x1: x - wMax / 2 - 4, x2: x + wMax / 2 + 4, y1: y + r + 6, y2: y + r + 22 + (lines.length - 1) * 12 * s };
+    if (placed.some(b => !(box.x2 < b.x1 || box.x1 > b.x2 || box.y2 < b.y1 || box.y1 > b.y2))) continue;
+    placed.push(box);
+    lines.forEach((L, k) => {
+      ctx.fillStyle = `rgba(200,206,222,${0.7 * fade})`;
+      ctx.fillText(L, x, y + r + 14 * s + k * 12 * s);
+    });
+  }
+
+  // idle spin
+  if (!dragging) { yaw += vYaw; vYaw *= 0.995; if (vYaw < 0.0008) vYaw += 0.00035; }
+  zoom += (targetZoom - zoom) * 0.09;
+
+  requestAnimationFrame(draw);
+}
+
+// interaction
+cv.addEventListener('pointerdown', e => {
+  dragging = true; moved = 0; lastX = e.clientX; lastY = e.clientY;
+  document.getElementById('stage').classList.add('dragging');
+  cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  moved += Math.abs(dx) + Math.abs(dy);
+  yaw += dx * 0.006;
+  pitch = Math.max(-1.1, Math.min(1.1, pitch + dy * 0.005));
+  lastX = e.clientX; lastY = e.clientY;
+});
+cv.addEventListener('pointerup', e => {
+  dragging = false;
+  document.getElementById('stage').classList.remove('dragging');
+  if (moved < 6) pick(e);
+});
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  targetZoom = Math.max(0.55, Math.min(2.1, targetZoom * (e.deltaY > 0 ? 0.93 : 1.07)));
+}, { passive: false });
+
+function pick(e) {
+  const r = cv.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = -1, bd = 1e9;
+  for (const n of nodes) {
+    const p = proj(rot(n));
+    const d = Math.hypot(p.x - mx, p.y - my);
+    const rad = Math.max(20, 26 * p.s);
+    if (d < rad && d < bd) { bd = d; best = n.i; }
+  }
+  if (best >= 0) showQuestion(best);
+}
+
+/* ============================================================
+   PANEL
+   ============================================================ */
+const body = document.getElementById('panelBody');
+let view = 'ladder';
+
+function tierLabel(t) {
+  return t === 'S' ? 'S — free marks, do first'
+       : t === 'A' ? 'A — big points, mechanical'
+       : 'B — needs care, do last';
+}
+
+function renderLadder() {
+  view = 'ladder';
+  document.getElementById('btnLadder').classList.add('on');
+  document.getElementById('btnCheat').classList.remove('on');
+  document.getElementById('btnDrill').classList.remove('on');
+  const tiers = [['S', Q.filter(q => q.tier === 'S')], ['A', Q.filter(q => q.tier === 'A')], ['B', Q.filter(q => q.tier === 'B')]];
+
+  let h = `<div class="ladder-head">
+    <h1>You have 4 hours. Here is the order.</h1>
+    <p>Everything is ranked by <b>points ÷ minutes to learn</b>. Tier S is where a beginner gets the most marks per minute. If you only have 3 hours, do S and A and skip the last two of B.</p>
+  </div>`;
+
+  h += `<h4 style="margin-top:18px">The 4-hour plan</h4><div class="plan">
+    <div class="plan-row"><b>0:00</b><div>Q8 tree vocab · Q5 handshake · Q11 Huffman — three wins in 40 min</div></div>
+    <div class="plan-row"><b>0:40</b><div>Q12 SOP &amp; gates · Q13 K-map — the Boolean block</div></div>
+    <div class="plan-row"><b>1:20</b><div>Q1 bagels · Q2 strings · Q3 parity — one formula family</div></div>
+    <div class="plan-row"><b>2:10</b><div>Q9 Kruskal · Q7 Dijkstra — both are just tables</div></div>
+    <div class="plan-row"><b>2:50</b><div>Q6 knight · Q4 coloring · Q10 DFS</div></div>
+    <div class="plan-row"><b>3:20</b><div>Q14 Quine–McCluskey — the long grind</div></div>
+    <div class="plan-row"><b>3:50</b><div>Cheat sheet only. No new material.</div></div>
+  </div>`;
+
+  for (const [t, list] of tiers) {
+    if (!list.length) continue;
+    h += `<div class="tier t-${t}"><div class="tier-h">
+      <span class="tier-badge">${t}</span><span>${tierLabel(t)}</span></div>`;
+    for (const q of list) {
+      h += `<div class="card t-${t}" data-q="${q.n - 1}">
+        <div class="bar"></div>
+        <div class="card-top">
+          <span class="card-n">${String(q.n).padStart(2, '0')}</span>
+          <span class="card-t">${q.title}</span>
+          <span class="card-p">${q.pts}pt</span>
+        </div>
+        <div class="card-sub">${q.sub}</div>
+      </div>`;
+    }
+    h += `</div>`;
+  }
+
+  body.innerHTML = h;
+  body.querySelectorAll('.card').forEach(c =>
+    c.addEventListener('click', () => showQuestion(+c.dataset.q)));
+  syncSubline();
+}
+
+function renderCheat() {
+  view = 'cheat';
+  document.getElementById('btnCheat').classList.add('on');
+  document.getElementById('btnLadder').classList.remove('on');
+  document.getElementById('btnDrill').classList.remove('on');
+  let h = `<div class="ladder-head"><h1>Cheat sheet</h1>
+    <p>Read this in the last 15 minutes. Nothing here is new.</p></div>`;
+  for (const [sec, rows] of CHEAT) {
+    h += `<div class="cs-sec"><h5>${sec}</h5>`;
+    for (const [name, f] of rows) {
+      h += `<div class="cs-row"><b>${name}</b><span class="m">${f}</span></div>`;
+    }
+    h += `</div>`;
+  }
+  body.innerHTML = h;
+  document.getElementById('panel').scrollTop = 0;
+}
+
+/* ---- Drill: recall, not re-reading ---- */
+let drillQueue = [], drillPos = 0, drillRight = 0, drillRevealed = false;
+
+function startDrill() {
+  view = 'drill';
+  document.getElementById('btnDrill').classList.add('on');
+  document.getElementById('btnLadder').classList.remove('on');
+  document.getElementById('btnCheat').classList.remove('on');
+  drillQueue = Q.map((_, i) => i);
+  for (let i = drillQueue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [drillQueue[i], drillQueue[j]] = [drillQueue[j], drillQueue[i]];
+  }
+  drillPos = 0; drillRight = 0; drillRevealed = false;
+  renderDrill();
+}
+
+function renderDrill() {
+  if (drillPos >= drillQueue.length) {
+    const pct = Math.round(100 * drillRight / drillQueue.length);
+    body.innerHTML = `<div class="ladder-head"><h1>${drillRight} / ${drillQueue.length} recalled</h1>
+      <p>${pct >= 80 ? 'You are ready. Go over the cheat sheet and sleep.'
+        : pct >= 50 ? 'Decent. Re-open the ones you missed from the ladder, then drill again.'
+        : 'Do not panic. Go back to the Tier S cards and read the first principle, then drill again.'}</p></div>
+      <button class="btn pri" id="dagain" style="width:100%;padding:13px">drill again</button>
+      <button class="btn" id="dback" style="width:100%;padding:13px;margin-top:9px">back to the ladder</button>`;
+    document.getElementById('dagain').onclick = startDrill;
+    document.getElementById('dback').onclick = renderLadder;
+    return;
+  }
+
+  const q = Q[drillQueue[drillPos]];
+  let h = `<div class="d-head">
+      <span class="pill pts">Q${q.n}</span>
+      <span class="pill pts">${q.pts} points</span>
+      <span class="pill" style="background:rgba(255,255,255,.06);color:var(--A)">${drillPos + 1} / ${drillQueue.length}</span>
+    </div>
+    <div class="d-title">${q.title}</div>
+    <div class="d-sub">${q.sub}</div>
+
+    <h4>Say it out loud, then check</h4>
+    <div class="principle">What is the <em>first principle</em> here, and what are the first two steps you would write on the paper?</div>`;
+
+  if (!drillRevealed) {
+    h += `<button class="btn pri" id="dshow" style="width:100%;padding:14px;margin-top:18px">show the answer</button>`;
+  } else {
+    h += `<h4>The principle</h4><div class="principle">${q.principle}</div>
+      <h4>The moves</h4><ol class="steps">${q.steps.slice(0, 3).map(s => `<li>${s}</li>`).join('')}</ol>
+      <h4>Answer</h4><div class="ans">${q.answer}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px">
+        <button class="btn" id="dmiss" style="padding:13px">missed it</button>
+        <button class="btn" id="dgot" style="padding:13px;background:#1c3a2c;border-color:#2a5a44;color:#9df0c4">got it</button>
+      </div>
+      <div class="note">Be honest. "Missed it" just puts it back in the next round.</div>`;
+  }
+
+  body.innerHTML = h;
+  document.getElementById('panel').scrollTop = 0;
+
+  if (!drillRevealed) {
+    document.getElementById('dshow').onclick = () => { drillRevealed = true; renderDrill(); };
+  } else {
+    document.getElementById('dgot').onclick = () => { drillRight++; drillPos++; drillRevealed = false; renderDrill(); };
+    document.getElementById('dmiss').onclick = () => {
+      drillQueue.push(drillQueue[drillPos]);
+      drillPos++; drillRevealed = false; renderDrill();
+    };
+  }
+}
+
+
+function syncSubline() {
+  document.getElementById('subline').textContent =
+    `14 problems · 101 points · ${Q.filter(q => q.tier === 'S').length} should be automatic`;
+}
+
+function showQuestion(i) {
+  selected = i;
+  const q = Q[i];
+  const tc = q.tier === 'S' ? 'var(--S)' : q.tier === 'A' ? 'var(--A)' : 'var(--B)';
+
+  let h = `<button class="back" id="back">← all problems</button>
+  <div class="d-head">
+    <span class="pill pts">Q${q.n}</span>
+    <span class="pill pts">${q.pts} points</span>
+    <span class="pill time">~${q.min} min to learn</span>
+    <span class="pill" style="background:rgba(255,255,255,.06);color:${tc}">TIER ${q.tier}</span>
+  </div>
+  <div class="d-title">${q.title}</div>
+  <div class="d-sub">${q.sub}</div>
+
+  <h4>First principle</h4>
+  <div class="principle">${q.principle}</div>`;
+
+  if (q.widget) h += `<h4>Play with it</h4><div class="w" id="widget"></div>`;
+
+  h += `<h4>The moves, in order</h4><ol class="steps">${q.steps.map(s => `<li>${s}</li>`).join('')}</ol>`;
+
+  h += `<h4>Answer</h4><div class="ans">${q.answer}</div>`;
+
+  if (q.verify) h += `<div class="note" style="margin-top:10px">✓ ${q.verify}</div>`;
+
+  h += `<h4>Where people lose marks</h4><div class="trap"><b>Trap.</b> ${q.trap}</div>`;
+
+  if (q.harder) h += `<h4>If the real exam is harder</h4><div class="harder">${q.harder}</div>`;
+
+  body.innerHTML = h;
+  document.getElementById('panel').scrollTop = 0;
+  document.getElementById('back').addEventListener('click', renderLadder);
+
+  if (q.widget) mountWidget(q.widget);
+}
+
+/* ============================================================
+   WIDGETS
+   ============================================================ */
+function mountWidget(name) {
+  const el = document.getElementById('widget');
+  const fn = WIDGETS[name];
+  if (fn) fn(el);
+}
+
+const WIDGETS = {};
+
+/* ---- Q4: coloring ---- */
+WIDGETS.color = el => {
+  // positions in a 380x230 box, mirroring the exam drawing
+  const V = [
+    { x: 40, y: 95 }, { x: 150, y: 70 }, { x: 310, y: 40 },
+    { x: 225, y: 120 }, { x: 160, y: 140 }, { x: 235, y: 168 },
+    { x: 235, y: 200 }, { x: 40, y: 205 }
+  ];
+  const E = [[0,1],[0,2],[0,4],[1,3],[3,2],[4,3],[4,5],[4,6],[5,2],[7,6],[7,2]];
+  const COLORS = ['#ff5d73', '#4fd1ff', '#3ddc97'];
+  let col = V.map(() => -1);
+
+  el.innerHTML = `<div class="w-bar">
+      <span class="lbl">click a vertex to cycle its color</span>
+      <button class="btn" id="creset">reset</button>
+      <button class="btn" id="cauto">2-color greedy</button>
+    </div>
+    <canvas id="cgraph" width="380" height="240" style="width:100%;height:auto"></canvas>
+    <div class="note" id="cmsg">Try to use only 2 colors. Watch what happens.</div>`;
+
+  const c = el.querySelector('#cgraph'), g = c.getContext('2d');
+
+  function draw() {
+    g.clearRect(0, 0, 380, 240);
+    for (const [a, b] of E) {
+      g.beginPath(); g.moveTo(V[a].x, V[a].y); g.lineTo(V[b].x, V[b].y);
+      g.strokeStyle = '#2a3345'; g.lineWidth = 1.6; g.stroke();
+    }
+    V.forEach((v, i) => {
+      const filled = col[i] >= 0;
+      g.beginPath(); g.arc(v.x, v.y, 15, 0, 7);
+      g.fillStyle = filled ? COLORS[col[i]] : '#11151f';
+      g.fill();
+      g.lineWidth = 1.6;
+      g.strokeStyle = filled ? 'rgba(255,255,255,.5)' : '#39445c';
+      g.stroke();
+    });
+    // conflict check
+    let bad = [];
+    for (const [a, b] of E) if (col[a] >= 0 && col[a] === col[b]) { bad.push(a); bad.push(b); }
+    for (const i of new Set(bad)) {
+      g.beginPath(); g.arc(V[i].x, V[i].y, 21, 0, 7);
+      g.strokeStyle = '#ff5d73'; g.lineWidth = 2.5; g.stroke();
+    }
+    const used = new Set(col.filter(x => x >= 0)).size;
+    const allSet = col.every(x => x >= 0);
+    const msg = el.querySelector('#cmsg');
+    if (!allSet) msg.textContent = `${used} color${used === 1 ? '' : 's'} used so far. Coloring…`;
+    else if (bad.length) msg.innerHTML = `<span style="color:#ff5d73">Conflict — same color on an edge. That is the odd cycle resisting you.</span>`;
+    else msg.innerHTML = `<span style="color:#3ddc97">Valid coloring with ${used} colors.</span>` + (used === 3 ? ' This is minimal — no 2-coloring exists.' : '');
+  }
+
+  c.addEventListener('click', ev => {
+    const r = c.getBoundingClientRect();
+    const mx = (ev.clientX - r.left) * 380 / r.width;
+    const my = (ev.clientY - r.top) * 240 / r.height;
+    for (let i = 0; i < V.length; i++) {
+      if (Math.hypot(V[i].x - mx, V[i].y - my) < 18) {
+        col[i] = col[i] >= 2 ? -1 : col[i] + 1;
+        draw(); return;
+      }
+    }
+  });
+
+  el.querySelector('#creset').onclick = () => { col = V.map(() => -1); draw(); };
+  el.querySelector('#cauto').onclick = () => {
+    col = V.map(() => -1);
+    col[0] = 0;
+    const adj = V.map(() => []);
+    for (const [a, b] of E) { adj[a].push(b); adj[b].push(a); }
+    const qq = [0];
+    while (qq.length) {
+      const u = qq.shift();
+      for (const v of adj[u]) {
+        if (col[v] < 0) { col[v] = 1 - col[u]; qq.push(v); }
+      }
+    }
+    draw();
+    const bad = E.some(([a, b]) => col[a] === col[b]);
+    if (bad) el.querySelector('#cmsg').innerHTML =
+      `<span style="color:#ff5d73">Greedy 2-coloring failed.</span> Some edges now join equal colors — that is the proof it is not bipartite.`;
+  };
+  draw();
+};
+
+/* ---- Q6: 3D knight board ---- */
+WIDGETS.knight = el => {
+  el.innerHTML = `<div class="w-bar">
+      <span class="lbl">board size t</span>
+      <input type="range" id="kt" min="2" max="10" value="3">
+      <span class="num" id="kn">3 × 3</span>
+      <span class="num" id="ke" style="margin-left:auto">0 edges</span>
+    </div>
+    <div class="canvas-wrap"><canvas id="kb" width="400" height="320" style="width:100%;height:auto"></canvas></div>
+    <div class="note">Drag the board to tilt it. On a 3×3 the centre square has no moves at all, which is why that graph has an isolated vertex.</div>`;
+
+  const c = el.querySelector('#kb'), g = c.getContext('2d');
+  const slider = el.querySelector('#kt');
+  let t = 3, ry = 0.42, rx = -0.86, drag = false, lx = 0, ly = 0;
+  let E = [], WS = [];
+
+  function edges(T) {
+    const out = [];
+    for (let i = 0; i < T; i++) for (let j = 0; j < T; j++)
+      for (const [di, dj] of [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]]) {
+        const a = i + di, b = j + dj;
+        if (a >= 0 && a < T && b >= 0 && b < T && (i < a || (i === a && j < b))) out.push([i, j, a, b]);
+      }
+    return out;
+  }
+
+  function build() {
+    E = edges(t);
+    const ru = new Set(), cu = new Set();
+    for (const [a, b, cc, d] of E) { ru.add(a); ru.add(cc); cu.add(b); cu.add(d); }
+    WS = [];
+    let k = 1;
+    for (let i = 0; i < t; i++) {
+      WS[i] = [];
+      for (let j = 0; j < t; j++) {
+        const act = ru.has(i) || cu.has(j);
+        WS[i][j] = act ? k++ : -1;
+      }
+    }
+    el.querySelector('#kn').textContent = `${t} × ${t}`;
+    el.querySelector('#ke').textContent = `${E.length} edges`;
+  }
+
+  // world: board lies flat in the x–z plane, y is up. Units = tiles.
+  function project(x, y, z) {
+    const cy = Math.cos(ry), sy = Math.sin(ry);
+    let X = x * cy + z * sy;
+    let Z = -x * sy + z * cy;
+    const cp = Math.cos(rx), sp = Math.sin(rx);
+    let Y = y * cp - Z * sp;
+    Z = y * sp + Z * cp;
+    const persp = 8 / (8 + Z * 0.55);
+    const k = (250 / t) * persp;
+    return { x: 200 + X * k, y: 168 + Y * k, k, z: Z };
+  }
+
+  function draw() {
+    g.clearRect(0, 0, 400, 320);
+    const half = t / 2, H2 = 0.16;
+
+    // drop shadow / slab
+    g.beginPath();
+    const slab = [[-half, -half], [half, -half], [half, half], [-half, half]];
+    slab.forEach(([x, z], i) => {
+      const p = project(x, H2, z);
+      i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y);
+    });
+    g.closePath();
+    g.fillStyle = '#10151f'; g.fill();
+    g.strokeStyle = '#1e2634'; g.lineWidth = 1; g.stroke();
+
+    // tiles, back to front
+    const tiles = [];
+    for (let i = 0; i < t; i++) for (let j = 0; j < t; j++) {
+      const cx = j - half + 0.5, cz = i - half + 0.5;
+      const mid = project(cx, 0, cz);
+      tiles.push({ i, j, cx, cz, mid });
+    }
+    tiles.sort((a, b) => a.mid.z - b.mid.z);
+
+    for (const { i, j, cx, cz } of tiles) {
+      const q = 0.46;
+      const corners = [[cx-q,cz-q],[cx+q,cz-q],[cx+q,cz+q],[cx-q,cz+q]];
+      g.beginPath();
+      corners.forEach(([x, z], n) => {
+        const p = project(x, 0, z);
+        n ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y);
+      });
+      g.closePath();
+      g.fillStyle = (i + j) % 2 ? '#1b2230' : '#252f42';
+      g.fill();
+      g.strokeStyle = 'rgba(90,110,150,.35)'; g.lineWidth = 1; g.stroke();
+    }
+
+    // knight edges above the board
+    for (const [a, b, cc, d] of E) {
+      const p1 = project(b - half + 0.5, 0.02, a - half + 0.5);
+      const p2 = project(d - half + 0.5, 0.02, cc - half + 0.5);
+      g.beginPath(); g.moveTo(p1.x, p1.y); g.lineTo(p2.x, p2.y);
+      g.strokeStyle = 'rgba(79,209,255,.65)'; g.lineWidth = 1.6; g.stroke();
+    }
+
+    // numbers, front to back so near ones sit on top
+    for (const t2 of [...tiles].reverse()) {
+      const { i, j, cx, cz, mid } = t2;
+      const rad = Math.max(5, 15 * (mid.k / (250 / t)));
+      if (WS[i][j] > 0) {
+        g.beginPath(); g.arc(mid.x, mid.y, rad, 0, 7);
+        g.fillStyle = '#ffc043'; g.fill();
+        g.font = `800 ${Math.max(7, rad * 0.92)}px ui-monospace,monospace`;
+        g.fillStyle = '#0a0c12'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText(WS[i][j], mid.x, mid.y + 0.5);
+      } else {
+        g.beginPath(); g.arc(mid.x, mid.y, rad * 0.62, 0, 7);
+        g.fillStyle = 'rgba(110,120,145,.55)'; g.fill();
+      }
+    }
+  }
+
+  c.addEventListener('pointerdown', e => { drag = true; lx = e.clientX; ly = e.clientY; c.setPointerCapture(e.pointerId); });
+  c.addEventListener('pointerup', () => drag = false);
+  c.addEventListener('pointermove', e => {
+    if (!drag) return;
+    ry += (e.clientX - lx) * 0.011;
+    rx = Math.max(-1.45, Math.min(-0.12, rx + (e.clientY - ly) * 0.008));
+    lx = e.clientX; ly = e.clientY;
+  });
+  slider.oninput = () => { t = +slider.value; build(); draw(); };
+
+  build(); draw();
+};
+
+/* ---- Q7: Dijkstra table ---- */
+WIDGETS.dijkstra = el => {
+  const G = {
+    X: { A:7, B:2, C:3 }, A: { B:3, D:4, X:7 }, B: { A:3 },
+    C: { X:3, H:3, L:2, I:7 }, D: { B:4, A:4, F:1 }, E: { X:4 },
+    F: { D:1, H:3, Y:1 }, G: { H:2, Y:2, K:8 }, H: { B:5, C:3, G:2 },
+    I: { K:4, J:6, L:4, C:7 }, J: { I:6, L:1, K:9, E:1 },
+    K: { G:8, Y:5 }, L: { I:4, J:1, C:2 }, Y: { F:1, K:5 }
+  };
+  const order = ['X','A','B','C','D','E','F','G','H','I','J','K','L','Y'];
+  const dist = {}, done = new Set(), prev = {};
+  order.forEach(v => dist[v] = v === 'X' ? 0 : Infinity);
+  let steps = 0;
+
+  el.innerHTML = `<div class="w-bar">
+      <button class="btn pri" id="dnext">settle next</button>
+      <button class="btn" id="dreset">reset</button>
+      <span class="lbl" id="dnow" style="margin-left:auto"></span>
+    </div>
+    <div style="overflow:auto"><table class="dt" id="dtab"></table></div>
+    <div class="note">Green rows are settled — their distance is final. Every other distance is still a running guess.</div>`;
+
+  function render() {
+    let h = '<tr><th>v</th>';
+    for (const v of order) h += `<th>${v}</th>`;
+    h += '</tr><tr><td>d</td>';
+    for (const v of order) {
+      h += `<td style="${done.has(v) ? 'color:#3ddc97;font-weight:800' : ''}">${dist[v] === Infinity ? '∞' : dist[v]}</td>`;
+    }
+    h += '</tr>';
+    el.querySelector('#dtab').innerHTML = h;
+  }
+
+  el.querySelector('#dnext').onclick = () => {
+    let u = null;
+    for (const v of order) if (!done.has(v) && dist[v] < Infinity && (u === null || dist[v] < dist[u])) u = v;
+    if (!u) return;
+    done.add(u);
+    for (const [v, w] of Object.entries(G[u])) {
+      if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; prev[v] = u; }
+    }
+    steps++;
+    el.querySelector('#dnow').textContent = `settled ${u} at ${dist[u]}`;
+    render();
+
+    if (done.has('Y')) {
+      const path = ['Y']; let cur = 'Y';
+      while (cur !== 'X') { cur = prev[cur]; path.push(cur); }
+      el.querySelector('#dnow').innerHTML = `<span style="color:#3ddc97">done: ${path.reverse().join(' → ')} = ${dist.Y}</span>`;
+    }
+    if (done.size === order.length) el.querySelector('#dnext').disabled = true;
+  };
+  el.querySelector('#dreset').onclick = () => {
+    order.forEach(v => dist[v] = v === 'X' ? 0 : Infinity);
+    done.clear(); Object.keys(prev).forEach(k => delete prev[k]);
+    el.querySelector('#dnow').textContent = '';
+    el.querySelector('#dnext').disabled = false;
+    render();
+  };
+  render();
+};
+
+/* ---- Q8: tree ---- */
+WIDGETS.tree = el => {
+  const N = {
+    a:{x:190,y:20,p:null}, b:{x:80,y:70,p:'a'}, f:{x:175,y:70,p:'a'}, g:{x:300,y:70,p:'a'},
+    c:{x:80,y:120,p:'b'}, d:{x:40,y:175,p:'c'}, e:{x:120,y:175,p:'c'},
+    h:{x:255,y:120,p:'g'}, i:{x:310,y:120,p:'g'}, j:{x:365,y:120,p:'g'},
+    k:{x:255,y:175,p:'h'}, l:{x:340,y:175,p:'j'}, m:{x:390,y:175,p:'j'}
+  };
+  let ask = null;
+
+  el.innerHTML = `<div class="w-bar">
+      <span class="lbl">click a node to highlight its relation to <b style="color:#ffc043">a</b></span>
+      <button class="btn" id="tclear">clear</button>
+    </div>
+    <canvas id="tc" width="420" height="205" style="width:100%;height:auto"></canvas>
+    <div class="note" id="tmsg">Click any vertex.</div>`;
+
+  const c = el.querySelector('#tc'), g = c.getContext('2d');
+
+  function draw(hl) {
+    g.clearRect(0, 0, 420, 205);
+    for (const [k, o] of Object.entries(N)) {
+      if (!o.p) continue;
+      const P = N[o.p];
+      g.beginPath(); g.moveTo(P.x, P.y); g.lineTo(o.x, o.y);
+      g.strokeStyle = hl && (hl.anc.has(k) || hl.desc.has(k)) ? '#ffc043' : '#2a3345';
+      g.lineWidth = hl && (hl.anc.has(k) || hl.desc.has(k)) ? 2.5 : 1.6;
+      g.stroke();
+    }
+    for (const [k, o] of Object.entries(N)) {
+      let fill = '#1a2130', stroke = '#39445c', txt = '#8b93a8';
+      if (hl) {
+        if (hl.self === k) { fill = '#ffc043'; txt = '#0a0c12'; stroke = '#fff'; }
+        else if (hl.anc.has(k)) { fill = '#3ddc97'; txt = '#0a0c12'; stroke = '#3ddc97'; }
+        else if (hl.desc.has(k)) { fill = '#4fd1ff'; txt = '#0a0c12'; stroke = '#4fd1ff'; }
+      }
+      g.beginPath(); g.arc(o.x, o.y, 12, 0, 7);
+      g.fillStyle = fill; g.fill();
+      g.strokeStyle = stroke; g.lineWidth = 1.6; g.stroke();
+      g.font = '700 11px ui-monospace,monospace';
+      g.fillStyle = txt; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(k, o.x, o.y);
+    }
+  }
+
+  function ancestors(v) { const s = new Set(); let p = N[v].p; while (p) { s.add(p); p = N[p].p; } return s; }
+  function descendants(v) {
+    const s = new Set(); const st = [v];
+    while (st.length) { const u = st.pop(); for (const [k, o] of Object.entries(N)) if (o.p === u) { s.add(k); st.push(k); } }
+    return s;
+  }
+  function kids(v) { return Object.keys(N).filter(k => N[k].p === v); }
+
+  c.addEventListener('click', ev => {
+    const r = c.getBoundingClientRect();
+    const mx = (ev.clientX - r.left) * 420 / r.width;
+    const my = (ev.clientY - r.top) * 205 / r.height;
+    for (const [k, o] of Object.entries(N)) {
+      if (Math.hypot(o.x - mx, o.y - my) < 15) {
+        const hl = { self: k, anc: ancestors(k), desc: descendants(k) };
+        draw(hl);
+        const msg = el.querySelector('#tmsg');
+        const par = N[k].p, ch = kids(k), sib = par ? kids(par).filter(x => x !== k) : [];
+        msg.innerHTML = `<b style="color:#ffc043">${k}</b> ·
+          parent: <b>${par || '—'}</b> ·
+          children: <b>${ch.join(', ') || 'none (leaf)'}</b> ·
+          siblings: <b>${sib.join(', ') || 'none'}</b><br>
+          <span style="color:#3ddc97">green = ancestors</span> · <span style="color:#4fd1ff">blue = descendants/subtree</span>`;
+        return;
+      }
+    }
+  });
+
+  el.querySelector('#tclear').onclick = () => { draw(null); el.querySelector('#tmsg').textContent = 'Click any vertex.'; };
+  draw(null);
+};
+
+/* ---- Q9: Kruskal stepper ---- */
+WIDGETS.kruskal = el => {
+  const V = {
+    A:[200,25], B:[110,68], C:[200,105], D:[310,68], E:[62,145], F:[44,196],
+    G:[200,182], H:[34,282], I:[200,258], J:[318,258], K:[200,400], L:[318,348]
+  };
+  const ES = [
+    ['B','C',1],['I','J',1],['B','E',2],['C','D',2],['G','I',2],['G','J',3],['K','L',3],
+    ['E','F',4],['A','B',6],['A','C',6],['A','D',6],['C','E',7],['J','L',8],['C','J',10],
+    ['F','H',10],['F','G',11],['H','I',12],['C','G',13],['I','L',13],['I','K',16],
+    ['D','J',18],['G','H',22],['H','K',25]
+  ].sort((a, b) => a[2] - b[2]);
+
+  const par = {};
+  const find = x => { par[x] = par[x] || x; return par[x] === x ? x : find(par[x]); };
+  let idx = 0, tree = [], total = 0, log = [];
+
+  el.innerHTML = `<div class="w-bar">
+      <button class="btn pri" id="knext">next edge</button>
+      <button class="btn" id="kreset">reset</button>
+      <span class="num" id="kw" style="margin-left:auto">weight 0</span>
+    </div>
+    <canvas id="kc" width="380" height="430" style="width:100%;height:auto"></canvas>
+    <div class="note" id="kmsg">Sorted list ready. Take edges in order, reject any that closes a cycle.</div>`;
+
+  const c = el.querySelector('#kc'), g = c.getContext('2d');
+  const SC = 0.86;
+
+  function draw(cur) {
+    g.clearRect(0, 0, 380, 430);
+    for (const [u, v, w] of ES) {
+      const A = V[u], B = V[v];
+      const inTree = tree.some(e => (e[0] === u && e[1] === v) || (e[0] === v && e[1] === u));
+      const isCur = cur && cur[0] === u && cur[1] === v && cur[2] === w;
+      g.beginPath();
+      g.moveTo(A[0] * SC, A[1] * SC); g.lineTo(B[0] * SC, B[1] * SC);
+      g.strokeStyle = inTree ? '#3ddc97' : isCur ? '#ffc043' : '#232c3d';
+      g.lineWidth = inTree ? 3 : isCur ? 2.5 : 1.2;
+      g.stroke();
+      if (inTree || isCur) {
+        const mx = (A[0] + B[0]) / 2 * SC, my = (A[1] + B[1]) / 2 * SC;
+        g.font = '800 9px ui-monospace,monospace';
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillStyle = '#07080d';
+        g.beginPath(); g.arc(mx, my, 7, 0, 7); g.fillStyle = inTree ? '#3ddc97' : '#ffc043'; g.fill();
+        g.fillStyle = '#07080d'; g.fillText(w, mx, my + .5);
+      }
+    }
+    for (const [k, [x, y]] of Object.entries(V)) {
+      g.beginPath(); g.arc(x * SC, y * SC, 11, 0, 7);
+      g.fillStyle = '#ffc043'; g.fill();
+      g.font = '800 10px ui-monospace,monospace';
+      g.fillStyle = '#07080d'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(k, x * SC, y * SC + .5);
+    }
+  }
+
+  el.querySelector('#knext').onclick = () => {
+    while (idx < ES.length && tree.length < 11) {
+      const [u, v, w] = ES[idx++];
+      const ru = find(u), rv = find(v);
+      if (ru !== rv) {
+        par[ru] = rv; tree.push([u, v, w]); total += w;
+        el.querySelector('#kmsg').innerHTML = `<b style="color:#3ddc97">take ${u}–${v} (${w})</b> — different components, no cycle. Tree now has ${tree.length} edges, weight ${total}.`;
+        el.querySelector('#kw').textContent = `weight ${total}`;
+        draw([u, v, w]);
+        if (tree.length === 11) {
+          el.querySelector('#kmsg').innerHTML = `<b style="color:#3ddc97">Done — 11 edges, minimum weight ${total}.</b> 12 vertices need exactly 11 edges.`;
+          el.querySelector('#knext').disabled = true;
+        }
+        return;
+      } else {
+        el.querySelector('#kmsg').innerHTML = `<b style="color:#ff5d73">reject ${u}–${v} (${w})</b> — ${u} and ${v} are already connected, this would close a cycle.`;
+        draw(null);
+        return;
+      }
+    }
+  };
+  el.querySelector('#kreset').onclick = () => {
+    idx = 0; tree = []; total = 0;
+    Object.keys(par).forEach(k => delete par[k]);
+    el.querySelector('#kw').textContent = 'weight 0';
+    el.querySelector('#knext').disabled = false;
+    el.querySelector('#kmsg').textContent = 'Sorted list ready.';
+    draw(null);
+  };
+  draw(null);
+};
+
+/* ---- Q10: DFS ---- */
+WIDGETS.dfs = el => {
+  el.innerHTML = `<div class="w-bar">
+      <span class="lbl">the rule</span>
+      <span class="num">smallest unvisited neighbour, else backtrack</span>
+    </div>
+    <div class="note" style="margin-top:0">
+      The tree edge is the edge you used to <i>arrive</i> at a new vertex. Backtracking edges never enter the tree.
+      On the exam page there are 15 boxes, because a spanning tree on 16 vertices has exactly 15 edges.
+    </div>
+    <table class="dt" style="margin-top:12px">
+      <tr><th>step</th><th>action</th><th>tree edge?</th></tr>
+      <tr><td>1</td><td>visit 1 (start)</td><td>—</td></tr>
+      <tr><td>2</td><td>1 → smallest unvisited neighbour</td><td>yes</td></tr>
+      <tr><td>…</td><td>keep going deeper</td><td>yes</td></tr>
+      <tr><td>back</td><td>dead end → pop the stack, look for another neighbour</td><td>no</td></tr>
+      <tr><td>15</td><td>15th new vertex reached</td><td>yes</td></tr>
+    </table>`;
+};
+
+/* ---- Q11: Huffman ---- */
+WIDGETS.huffman = el => {
+  const syms = [['n',4],['_',3],['o',2],['a',2],['i',2],['p',1],['g',1]];
+  let pool = syms.map(([s, w]) => ({ w, label: s, items: [[s, '']] }));
+  let log = [];
+  let done = false;
+
+  el.innerHTML = `<div class="w-bar">
+      <button class="btn pri" id="hnext">merge two smallest</button>
+      <button class="btn" id="hreset">reset</button>
+      <span class="lbl" id="hs" style="margin-left:auto"></span>
+    </div>
+    <div id="hpool" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <table class="dt" id="htab"><tr><th>symbol</th><th>freq</th><th>code</th><th>bits</th></tr></table>
+    <div class="note" id="hmsg">Pool is initialised from the character counts. Merge the two smallest each time.</div>`;
+
+  function renderPool() {
+    el.querySelector('#hpool').innerHTML = pool
+      .slice().sort((a, b) => b.w - a.w)
+      .map(n => `<span class="m" style="background:rgba(255,192,67,.1);color:#ffc043;padding:6px 10px">${n.label} <b>${n.w}</b></span>`)
+      .join('');
+  }
+
+  function renderCodes() {
+    if (pool.length !== 1) return;
+    const codes = {};
+    for (const [s, c] of pool[0].items) codes[s] = c;
+    let h = '<tr><th>symbol</th><th>freq</th><th>code</th><th>bits</th></tr>';
+    let tot = 0;
+    for (const [s, f] of syms) {
+      const c = codes[s] || '';
+      tot += f * c.length;
+      h += `<tr><td>${s === '_' ? '␣' : s}</td><td>${f}</td><td style="color:#ffc043">${c}</td><td>${f * c.length}</td></tr>`;
+    }
+    h += `<tr class="hi"><td>total</td><td></td><td></td><td>${tot}</td></tr>`;
+    el.querySelector('#htab').innerHTML = h;
+  }
+
+  el.querySelector('#hnext').onclick = () => {
+    if (pool.length < 2) return;
+    pool.sort((a, b) => a.w - b.w);
+    const a = pool.shift(), b = pool.shift();
+    const merged = {
+      w: a.w + b.w,
+      label: a.label + b.label,
+      items: [...a.items.map(([s, c]) => [s, '0' + c]), ...b.items.map(([s, c]) => [s, '1' + c])]
+    };
+    pool.push(merged);
+    el.querySelector('#hmsg').innerHTML = `merged <b>${a.label}</b>(${a.w}) + <b>${b.label}</b>(${b.w}) = <b>${merged.w}</b>`;
+    renderPool();
+    if (pool.length === 1) {
+      el.querySelector('#hmsg').innerHTML = `<b style="color:#3ddc97">Root reached (15 = string length).</b> Codes below. Any valid merge order is marked correct.`;
+      el.querySelector('#hnext').disabled = true;
+      renderCodes();
+    }
+  };
+  el.querySelector('#hreset').onclick = () => {
+    pool = syms.map(([s, w]) => ({ w, label: s, items: [[s, '']] }));
+    el.querySelector('#htab').innerHTML = '<tr><th>symbol</th><th>freq</th><th>code</th><th>bits</th></tr>';
+    el.querySelector('#hnext').disabled = false;
+    el.querySelector('#hmsg').textContent = 'Pool reset.';
+    renderPool();
+  };
+  renderPool();
+};
+
+/* ---- Q12: SOP ---- */
+WIDGETS.sop = el => {
+  const rows = [[1,1,1,1],[1,1,0,0],[1,0,1,1],[1,0,0,0],[0,1,1,1],[0,1,0,0],[0,0,1,0],[0,0,0,0]];
+  let h = `<table class="dt"><tr><th>A</th><th>B</th><th>C</th><th>F</th><th>term</th></tr>`;
+  rows.forEach(([a,b,c,f]) => {
+    const term = f ? [a?'A':'<span class="bf">A</span>', b?'B':'<span class="bf">B</span>', c?'C':'<span class="bf">C</span>'].join('') : '';
+    h += `<tr class="${f ? 'hi' : ''}"><td>${a}</td><td>${b}</td><td>${c}</td><td>${f}</td><td>${term}</td></tr>`;
+  });
+  h += `</table><div class="note">Only the F = 1 rows produce a term. Reading them off: <span class="m">A<span class="bf">B</span>C + <span class="bf">A</span>BC + ABC</span> → simplify → <b style="color:#3ddc97">C(A + B)</b></div>`;
+  el.innerHTML = h;
+};
+
+/* ---- Q13: K-map ---- */
+WIDGETS.kmap = el => {
+  const ones = new Set([0,3,7,8,10,11]);
+  const gray = ['00','01','11','10'];
+  // rows = AB, cols = CD
+  const groups = [
+    { cells: [[0,0],[3,0]], label:'<span class="bf">B</span><span class="bf">C</span><span class="bf">D</span>', color:'#ffc043' },
+    { cells: [[1,2],[1,3]], label:'<span class="bf">A</span>CD', color:'#4fd1ff' },
+    { cells: [[3,3],[2,3]], label:'A<span class="bf">B</span>C', color:'#3ddc97' }
+  ];
+  let h = `<table class="dt" style="text-align:center">
+    <tr><th style="text-align:center">AB \\ CD</th>${gray.map(c => `<th style="text-align:center">${c}</th>`).join('')}</tr>`;
+  for (let r = 0; r < 4; r++) {
+    h += `<tr><td style="color:#5c6579;font-weight:700">${gray[r]}</td>`;
+    for (let c = 0; c < 4; c++) {
+      const m = parseInt(gray[r] + gray[c], 2);
+      const on = ones.has(m);
+      let bg = 'transparent', mark = '';
+      for (const gr of groups) if (gr.cells.some(([rr, cc]) => rr === r && cc === c)) { mark = gr.color; }
+      h += `<td style="text-align:center;font-size:15px;font-weight:800;padding:11px 6px;
+        ${on ? 'color:' + (mark || '#dfe4f0') : 'color:#2e3646'};
+        ${mark ? 'border:2px solid ' + mark + ';border-radius:6px' : ''}">${on ? 1 : '<span style="opacity:.35">0</span>'}</td>`;
+    }
+    h += '</tr>';
+  }
+  h += `</table>
+    <div class="note" style="margin-top:12px">
+      <span style="color:#ffc043">■ <span class="bf">B</span><span class="bf">C</span><span class="bf">D</span> (cells 0,8)</span> &nbsp;
+      <span style="color:#4fd1ff">■ <span class="bf">A</span>CD (cells 3,7)</span> &nbsp;
+      <span style="color:#3ddc97">■ A<span class="bf">B</span>C (cells 10,11)</span><br>
+      F = <b style="color:#dfe4f0"><span class="bf">B</span><span class="bf">C</span><span class="bf">D</span> + <span class="bf">A</span>CD + A<span class="bf">B</span>C</b>
+    </div>`;
+  el.innerHTML = h;
+};
+
+/* ---- Q14: QM ---- */
+WIDGETS.qm = el => {
+  const mt = [0,2,5,6,7,8,10,12,13,14,15];
+  const bin = m => m.toString(2).padStart(4, '0');
+  const byOnes = {};
+  mt.forEach(m => { const k = bin(m).replace(/0/g,'').length; (byOnes[k] = byOnes[k] || []).push(m); });
+
+  let h = `<div class="note" style="margin-top:0">Group the minterms by how many 1s they contain. Combinations only happen between adjacent groups.</div>`;
+  h += `<table class="dt" style="margin-top:10px"><tr><th>#ones</th><th>minterms</th></tr>`;
+  for (const k of Object.keys(byOnes).sort()) {
+    h += `<tr><td>${k}</td><td>${byOnes[k].map(m => `${m} <span style="color:#5c6579">${bin(m)}</span>`).join(' &nbsp; ')}</td></tr>`;
+  }
+  h += `</table>`;
+  h += `<div class="note" style="margin-top:14px">
+    Pass 1 gives <span class="m">00−0, −000, 0−10, −010, 1−00, 10−0, 01−1, 011−, 1−01, 110−, 11−0, 111−, 1−11, −111</span> and so on.
+    After the passes stop, the surviving prime implicants are <span class="m">B̄D̄, BD, CD̄, BC, AD̄, AB</span>.
+  </div>`;
+  h += `<div class="note" style="margin-top:10px;color:#3ddc97">
+    <b>Cover:</b> 0 and 2 appear only in B̄D̄ · 5 appears only in BD → both essential.<br>
+    Remaining: 6, 12, 14 — all inside CD̄. Take it. Done in 3 terms.
+  </div>`;
+  el.innerHTML = h;
+};
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+document.getElementById('btnLadder').onclick = renderLadder;
+document.getElementById('btnCheat').onclick = renderCheat;
+document.getElementById('btnDrill').onclick = startDrill;
+
+resize();
+renderLadder();
+draw();
+</script>
+</body>
+</html>
